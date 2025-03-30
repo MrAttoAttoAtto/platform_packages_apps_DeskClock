@@ -602,7 +602,7 @@ public class RingtonePickerActivity extends BaseActivity
 
         @Override
         protected void onPostExecute(AddCustomRingtoneResult result) {
-            CustomRingtone existing = DataModel.getDataModel().getCustomRingtone(mUri);
+            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(mUri);
             if (existing == null) {
                 // Add the new custom ringtone to the data model.
                 DataModel.getDataModel().addCustomRingtone(result.getPlaybackUri(), mUri, result.getTitle());

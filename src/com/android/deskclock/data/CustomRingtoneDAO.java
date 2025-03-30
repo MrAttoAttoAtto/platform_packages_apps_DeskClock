@@ -109,6 +109,7 @@ final class CustomRingtoneDAO {
         final Set<String> ids = prefs.getStringSet(RINGTONE_IDS, Collections.<String>emptySet());
         final List<CustomRingtone> ringtones = new ArrayList<>(ids.size());
 
+        final SharedPreferences.Editor editor = prefs.edit();
         for (String id : ids) {
             final long idLong = Long.parseLong(id);
             final Uri uri = Uri.parse(prefs.getString(RINGTONE_URI + id, null));
@@ -116,13 +117,14 @@ final class CustomRingtoneDAO {
             final Uri originalUri;
             if (originalUriString == null) {
                 originalUri = uri;
-                // TODO ADD BACK IN
+                editor.putString(RINGTONE_ORIGINAL_URI + id, uri.toString());
             } else {
                 originalUri = Uri.parse(originalUriString);
             }
             final String title = prefs.getString(RINGTONE_TITLE + id, null);
             ringtones.add(new CustomRingtone(idLong, uri, originalUri, title, true));
         }
+        editor.apply();
 
         return ringtones;
     }

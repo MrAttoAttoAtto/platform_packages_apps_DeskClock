@@ -31,7 +31,6 @@ import android.view.View;
 
 import com.android.deskclock.Predicate;
 import com.android.deskclock.R;
-import com.android.deskclock.Utils;
 import com.android.deskclock.timer.TimerService;
 
 import java.util.Calendar;
@@ -44,7 +43,6 @@ import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.media.AudioManager.FLAG_SHOW_UI;
 import static android.media.AudioManager.STREAM_ALARM;
-import static android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS;
 import static android.provider.Settings.ACTION_SOUND_SETTINGS;
 import static com.android.deskclock.Utils.enforceMainLooper;
 import static com.android.deskclock.Utils.enforceNotMainLooper;
@@ -921,9 +919,9 @@ public final class DataModel {
     /** TODO DOCS
      * @return all available custom ringtones
      */
-    public CustomRingtone getCustomRingtone(Uri originalUri) {
+    public CustomRingtone getCustomRingtoneByOriginal(Uri originalUri) {
         enforceMainLooper();
-        return mRingtoneModel.getCustomRingtone(originalUri);
+        return mRingtoneModel.getCustomRingtoneByOriginal(originalUri);
     }
 
     /**

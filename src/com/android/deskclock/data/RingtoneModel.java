@@ -101,10 +101,12 @@ final class RingtoneModel {
             return false;
         }
 
-        File parent = new File(uri.getPath()).getParentFile();
+        File ringtone = new File(uri.getPath());
+        File parent = ringtone.getParentFile();
 
         return scheme.equals(ContentResolver.SCHEME_FILE)
-                && parent.equals(mCustomRingtoneDirectory);
+                && parent.equals(mCustomRingtoneDirectory)
+                && ringtone.exists();
     }
 
     CustomRingtone addCustomRingtone(Uri uri, Uri originalUri, String title) {
@@ -138,7 +140,17 @@ final class RingtoneModel {
         }
     }
 
-    CustomRingtone getCustomRingtone(Uri originalUri) {
+    CustomRingtone getCustomRingtone(Uri uri) {
+        for (CustomRingtone ringtone : getMutableCustomRingtones()) {
+            if (ringtone.getUri().equals(uri)) {
+                return ringtone;
+            }
+        }
+
+        return null;
+    }
+
+    CustomRingtone getCustomRingtoneByOriginal(Uri originalUri) {
         for (CustomRingtone ringtone : getMutableCustomRingtones()) {
             if (ringtone.getOriginalUri().equals(originalUri)) {
                 return ringtone;
