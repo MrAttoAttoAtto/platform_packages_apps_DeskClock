@@ -27,10 +27,13 @@ public final class CustomRingtone implements Comparable<CustomRingtone> {
     /** The unique identifier of the custom ringtone. */
     private final long mId;
 
-    /** The uri that can be used to play the ringtone. */
+    /**
+     * The uri that can be used to play the ringtone; typically in the device protected custom
+     * ringtone directory.
+     */
     private final Uri mUri;
 
-    /** The uri that was originally selected (copied) for the ringtone. */
+    /** The uri that was originally selected for the ringtone in the file picker. */
     private final Uri mOriginalUri;
 
     /** The title describing the file at the given uri; typically the file name. */

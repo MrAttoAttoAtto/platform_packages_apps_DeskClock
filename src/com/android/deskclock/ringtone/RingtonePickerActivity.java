@@ -528,7 +528,9 @@ public class RingtonePickerActivity extends BaseActivity
         }
     }
 
-    // TODO docs
+    /**
+     * The result returned from {@code AddCustomRingtoneTask}.
+     */
     private final class AddCustomRingtoneResult {
 
         private final Uri mPlaybackUri;
@@ -545,17 +547,19 @@ public class RingtonePickerActivity extends BaseActivity
     }
 
     /**
-     * TODO change docs
      * This task locates a displayable string in the background that is fit for use as the title of
-     * the audio content. It adds a custom ringtone using the uri and title on the main thread.
+     * the audio content. It also attempts to copy the audio to the device protected custom ringtone
+     * directory so that it can be played before CE storage is available.
+     * Upon completion, it adds a custom ringtone using the selected uri, playback uri and title on
+     * the main thread.
      */
     private final class AddCustomRingtoneTask extends AsyncTask<Void, Void, AddCustomRingtoneResult> {
 
-        private final Uri mUri;
+        private final Uri mOriginalUri;
         private final Context mContext;
 
-        private AddCustomRingtoneTask(Uri uri) {
-            mUri = uri;
+        private AddCustomRingtoneTask(Uri originalUri) {
+            mOriginalUri = originalUri;
             mContext = getApplicationContext();
         }
 
@@ -564,37 +568,37 @@ public class RingtonePickerActivity extends BaseActivity
             final ContentResolver contentResolver = mContext.getContentResolver();
 
             String title = mContext.getString(R.string.unknown_ringtone_title);
-            try (Cursor cursor = contentResolver.query(mUri, null, null, null, null)) {
+            try (Cursor cursor = contentResolver.query(mOriginalUri, null, null, null, null)) {
                 if (cursor != null && cursor.moveToFirst()) {
-                    // If the file was a media file, return its title.
+                    // If the file was a media file, use its title.
                     final int titleIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
                     if (titleIndex != -1) {
                         title = cursor.getString(titleIndex);
-                    }
-
-                    // If the file was a simple openable, return its display name.
-                    final int displayNameIndex = cursor.getColumnIndex(DISPLAY_NAME);
-                    if (displayNameIndex != -1) {
-                        String filename = cursor.getString(displayNameIndex);
-                        final int dotIndex = filename.lastIndexOf(".");
-                        if (dotIndex > 0) {
-                            filename = filename.substring(0, dotIndex);
+                    } else {
+                        // If the file was a simple openable, use its display name.
+                        final int displayNameIndex = cursor.getColumnIndex(DISPLAY_NAME);
+                        if (displayNameIndex != -1) {
+                            String filename = cursor.getString(displayNameIndex);
+                            final int dotIndex = filename.lastIndexOf(".");
+                            if (dotIndex > 0) {
+                                filename = filename.substring(0, dotIndex);
+                            }
+                            title = filename;
                         }
-                        title = filename;
                     }
                 } else {
-                    LogUtils.e("No ringtone for uri: %s", mUri);
+                    LogUtils.e("No ringtone for uri: %s", mOriginalUri);
                 }
             } catch (Exception e) {
-                LogUtils.e("Unable to locate title for custom ringtone: " + mUri, e);
+                LogUtils.e("Unable to locate title for custom ringtone: " + mOriginalUri, e);
             }
 
-            Uri playbackUri = DataModel.getDataModel().copyRingtoneDeviceProtectedStorage(mUri);
+            Uri playbackUri = DataModel.getDataModel().copyRingtoneToCustomRingtoneDirectory(mOriginalUri);
             if (playbackUri == null) {
                 // Copying to DP storage failed. Instead, take the long-term permission to read
-                // (playback) the audio at the uri.
-                contentResolver.takePersistableUriPermission(mUri, FLAG_GRANT_READ_URI_PERMISSION);
-                playbackUri = mUri;
+                // (playback) the audio at the original uri.
+                contentResolver.takePersistableUriPermission(mOriginalUri, FLAG_GRANT_READ_URI_PERMISSION);
+                playbackUri = mOriginalUri;
             }
 
             return new AddCustomRingtoneResult(playbackUri, title);
@@ -602,19 +606,18 @@ public class RingtonePickerActivity extends BaseActivity
 
         @Override
         protected void onPostExecute(AddCustomRingtoneResult result) {
-            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(mUri);
+            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(mOriginalUri);
             if (existing == null) {
                 // Add the new custom ringtone to the data model.
-                DataModel.getDataModel().addCustomRingtone(result.getPlaybackUri(), mUri, result.getTitle());
+                DataModel.getDataModel().addCustomRingtone(result.getPlaybackUri(), mOriginalUri, result.getTitle());
             } else {
                 // Update the existing custom ringtone in the data model.
                 DataModel.getDataModel().updateCustomRingtone(existing, result.getPlaybackUri(), result.getTitle());
-
                 // If applicable, delete the old device-encrypted copy.
                 if (DataModel.getDataModel().isInCustomRingtoneDirectory(existing.getUri())) {
                     File toDelete = new File(existing.getUri().getPath());
                     if (!toDelete.delete()) {
-                        // TODO LOG
+                        LogUtils.e("Cannot delete old custom ringtone file: %s", toDelete);
                     }
                 }
             }
@@ -661,20 +664,21 @@ public class RingtonePickerActivity extends BaseActivity
                 }
             }
 
-            try {
-                // Release the permission to read (playback) the audio at the uri.
-                cr.releasePersistableUriPermission(mRemoveUri, FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (SecurityException ignore) {
-                // If the file was already deleted from the file system, a SecurityException is
-                // thrown indicating this app did not hold the read permission being released.
-                LogUtils.w("SecurityException while releasing read permission for " + mRemoveUri);
-            }
-
-            // If applicable, delete the device-encrypted copy.
             if (DataModel.getDataModel().isInCustomRingtoneDirectory(mRemoveUri)) {
+                // If the ringtone is in the custom ringtone directory, it is a copy and so it
+                // should be deleted when removed.
                 File toDelete = new File(mRemoveUri.getPath());
                 if (!toDelete.delete()) {
-                    // TODO LOG
+                    LogUtils.e("Cannot delete removed custom ringtone file: %s", toDelete);
+                }
+            } else {
+                try {
+                    // Release the permission to read (playback) the audio at the uri.
+                    cr.releasePersistableUriPermission(mRemoveUri, FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException ignore) {
+                    // If the file was already deleted from the file system, a SecurityException is
+                    // thrown indicating this app did not hold the read permission being released.
+                    LogUtils.w("SecurityException while releasing read permission for " + mRemoveUri);
                 }
             }
 

@@ -52,11 +52,14 @@ import java.util.Set;
 import static android.media.AudioManager.STREAM_ALARM;
 import static android.media.RingtoneManager.TITLE_COLUMN_INDEX;
 
+import org.mockito.internal.matchers.Null;
+
 /**
  * All ringtone data is accessed via this model.
  */
 final class RingtoneModel {
 
+    /** Name of the device protected custom ringtone directory. */
     private static final String CUSTOM_RINGTONE_DIRECTORY_NAME = "ringtones";
 
     private final Context mContext;
@@ -66,6 +69,7 @@ final class RingtoneModel {
     /** Maps ringtone uri to ringtone title; looking up a title from scratch is expensive. */
     private final Map<Uri, String> mRingtoneTitles = new ArrayMap<>(16);
 
+    /** Directory in device protected storage where custom ringtones are stored. */
     private final File mCustomRingtoneDirectory;
 
     /** Clears data structures containing data that is locale-sensitive. */
@@ -88,7 +92,8 @@ final class RingtoneModel {
         final IntentFilter localeBroadcastFilter = new IntentFilter(Intent.ACTION_LOCALE_CHANGED);
         mContext.registerReceiver(mLocaleChangedReceiver, localeBroadcastFilter);
 
-        // Create device-protected folder for custom ringtones so they are accessible after reboot
+        // Create directory in device protected storage for custom ringtones. This means custom
+        // ringtones are accessible before CE storage is available.
         mCustomRingtoneDirectory = new File(
                 mContext.createDeviceProtectedStorageContext().getFilesDir(),
                 CUSTOM_RINGTONE_DIRECTORY_NAME);
@@ -96,17 +101,17 @@ final class RingtoneModel {
     }
 
     boolean isInCustomRingtoneDirectory(Uri uri) {
-        String scheme = uri.getScheme();
-        if (scheme == null) {
+        final String scheme = uri.getScheme();
+        if (scheme == null || !scheme.equals(ContentResolver.SCHEME_FILE)) {
             return false;
         }
 
-        File ringtone = new File(uri.getPath());
-        File parent = ringtone.getParentFile();
+        final File ringtone = new File(uri.getPath());
+        if (!ringtone.exists()) {
+            return false;
+        }
 
-        return scheme.equals(ContentResolver.SCHEME_FILE)
-                && parent.equals(mCustomRingtoneDirectory)
-                && ringtone.exists();
+        return ringtone.getParentFile().equals(mCustomRingtoneDirectory);
     }
 
     CustomRingtone addCustomRingtone(Uri uri, Uri originalUri, String title) {
@@ -120,11 +125,9 @@ final class RingtoneModel {
     CustomRingtone updateCustomRingtone(CustomRingtone existing, Uri uri, String title) {
         final CustomRingtone ringtone = CustomRingtoneDAO.updateCustomRingtone(mPrefs,
                 existing.getId(), uri,  existing.getOriginalUri(), title);
-
         final List<CustomRingtone> ringtones = getMutableCustomRingtones();
         ringtones.remove(existing);
         ringtones.add(ringtone);
-
         Collections.sort(getMutableCustomRingtones());
         return ringtone;
     }
@@ -140,7 +143,7 @@ final class RingtoneModel {
         }
     }
 
-    CustomRingtone getCustomRingtone(Uri uri) {
+    private CustomRingtone getCustomRingtone(Uri uri) {
         for (CustomRingtone ringtone : getMutableCustomRingtones()) {
             if (ringtone.getUri().equals(uri)) {
                 return ringtone;
@@ -180,8 +183,10 @@ final class RingtoneModel {
 
         for (ListIterator<CustomRingtone> i = ringtones.listIterator(); i.hasNext();) {
             final CustomRingtone ringtone = i.next();
-            final boolean hasPermissions = permissions.contains(ringtone.getUri())
-                    || isInCustomRingtoneDirectory(ringtone.getUri());
+            // The ringtone is accessible if it is in the custom ringtone directory or we have a
+            // persisted permission to it.
+            final boolean hasPermissions = isInCustomRingtoneDirectory(ringtone.getUri())
+                    || permissions.contains(ringtone.getUri());
             i.set(ringtone.setHasPermissions(hasPermissions));
         }
     }
@@ -238,23 +243,25 @@ final class RingtoneModel {
         return title;
     }
 
-    Uri copyRingtoneDeviceProtectedStorage(Uri originalUri) {
+    Uri copyRingtoneToCustomRingtoneDirectory(Uri originalUri) {
         ContentResolver contentResolver = mContext.getContentResolver();
-
         try {
+            // Create a new file in the custom ringtone directory with a unique name
             File ringtoneFile = File.createTempFile("ringtone", "", mCustomRingtoneDirectory);
             Uri playbackUri = Uri.fromFile(ringtoneFile);
             try (InputStream fis = contentResolver.openInputStream(originalUri);
                  OutputStream fos = contentResolver.openOutputStream(playbackUri)) {
-                if (fis != null) {
-                    fis.transferTo(fos);
-                    return playbackUri;
+                // Copies the original file to the newly-created file in device protected storage
+                fis.transferTo(fos);
+                return playbackUri;
+            } catch (IOException | NullPointerException e) {
+                LogUtils.e("Cannot copy ringtone to custom ringtone directory: %s", originalUri, e);
+                if (!ringtoneFile.delete()) {
+                    LogUtils.e("Cannot delete custom ringtone temp file: %s", ringtoneFile);
                 }
-            } catch (IOException e) {
-                // TODO log
             }
         } catch (IOException e) {
-            // TODO log
+            LogUtils.e("Cannot create file in custom ringtone directory", e);
         }
 
         return null;
