@@ -52,8 +52,6 @@ import java.util.Set;
 import static android.media.AudioManager.STREAM_ALARM;
 import static android.media.RingtoneManager.TITLE_COLUMN_INDEX;
 
-import org.mockito.internal.matchers.Null;
-
 /**
  * All ringtone data is accessed via this model.
  */
@@ -124,7 +122,7 @@ final class RingtoneModel {
 
     CustomRingtone updateCustomRingtone(CustomRingtone existing, Uri uri, String title) {
         final CustomRingtone ringtone = CustomRingtoneDAO.updateCustomRingtone(mPrefs,
-                existing.getId(), uri,  existing.getOriginalUri(), title);
+                existing.getId(), uri, existing.getOriginalUri(), title);
         final List<CustomRingtone> ringtones = getMutableCustomRingtones();
         ringtones.remove(existing);
         ringtones.add(ringtone);

@@ -593,11 +593,13 @@ public class RingtonePickerActivity extends BaseActivity
                 LogUtils.e("Unable to locate title for custom ringtone: " + mOriginalUri, e);
             }
 
-            Uri playbackUri = DataModel.getDataModel().copyRingtoneToCustomRingtoneDirectory(mOriginalUri);
+            Uri playbackUri = DataModel.getDataModel().copyRingtoneToCustomRingtoneDirectory(
+                    mOriginalUri);
             if (playbackUri == null) {
                 // Copying to DP storage failed. Instead, take the long-term permission to read
                 // (playback) the audio at the original uri.
-                contentResolver.takePersistableUriPermission(mOriginalUri, FLAG_GRANT_READ_URI_PERMISSION);
+                contentResolver.takePersistableUriPermission(mOriginalUri,
+                        FLAG_GRANT_READ_URI_PERMISSION);
                 playbackUri = mOriginalUri;
             }
 
@@ -606,13 +608,16 @@ public class RingtonePickerActivity extends BaseActivity
 
         @Override
         protected void onPostExecute(AddCustomRingtoneResult result) {
-            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(mOriginalUri);
+            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(
+                    mOriginalUri);
             if (existing == null) {
                 // Add the new custom ringtone to the data model.
-                DataModel.getDataModel().addCustomRingtone(result.getPlaybackUri(), mOriginalUri, result.getTitle());
+                DataModel.getDataModel().addCustomRingtone(result.getPlaybackUri(), mOriginalUri,
+                        result.getTitle());
             } else {
                 // Update the existing custom ringtone in the data model.
-                DataModel.getDataModel().updateCustomRingtone(existing, result.getPlaybackUri(), result.getTitle());
+                DataModel.getDataModel().updateCustomRingtone(existing, result.getPlaybackUri(),
+                        result.getTitle());
                 // If applicable, delete the old device-encrypted copy.
                 if (DataModel.getDataModel().isInCustomRingtoneDirectory(existing.getUri())) {
                     File toDelete = new File(existing.getUri().getPath());
@@ -678,7 +683,8 @@ public class RingtonePickerActivity extends BaseActivity
                 } catch (SecurityException ignore) {
                     // If the file was already deleted from the file system, a SecurityException is
                     // thrown indicating this app did not hold the read permission being released.
-                    LogUtils.w("SecurityException while releasing read permission for " + mRemoveUri);
+                    LogUtils.w(
+                            "SecurityException while releasing read permission for " + mRemoveUri);
                 }
             }
 

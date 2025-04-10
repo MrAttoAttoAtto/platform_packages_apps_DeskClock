@@ -60,7 +60,8 @@ final class CustomRingtoneDAO {
      * @param title the title of the audio content at the given {@code uri}
      * @return the newly added custom ringtone
      */
-    static CustomRingtone addCustomRingtone(SharedPreferences prefs, Uri uri, Uri originalUri, String title) {
+    static CustomRingtone addCustomRingtone(SharedPreferences prefs, Uri uri, Uri originalUri,
+            String title) {
         final long id = prefs.getLong(NEXT_RINGTONE_ID, 0);
         final Set<String> ids = getRingtoneIds(prefs);
         ids.add(String.valueOf(id));
@@ -83,7 +84,8 @@ final class CustomRingtoneDAO {
      * @param title the title of the audio content at the given {@code uri}
      * @return the updated custom ringtone
      */
-    static CustomRingtone updateCustomRingtone(SharedPreferences prefs, long id, Uri uri, Uri originalUri, String title) {
+    static CustomRingtone updateCustomRingtone(SharedPreferences prefs, long id, Uri uri,
+            Uri originalUri, String title) {
         prefs.edit()
                 .putString(RINGTONE_URI + id, uri.toString())
                 .putString(RINGTONE_ORIGINAL_URI + id, originalUri.toString())
