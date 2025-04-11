@@ -242,13 +242,13 @@ final class RingtoneModel {
     }
 
     Uri copyRingtoneToCustomRingtoneDirectory(Uri originalUri) {
-        ContentResolver contentResolver = mContext.getContentResolver();
+        final ContentResolver contentResolver = mContext.getContentResolver();
         try {
             // Create a new file in the custom ringtone directory with a unique name
-            File ringtoneFile = File.createTempFile("ringtone", "", mCustomRingtoneDirectory);
-            Uri playbackUri = Uri.fromFile(ringtoneFile);
-            try (InputStream fis = contentResolver.openInputStream(originalUri);
-                 OutputStream fos = contentResolver.openOutputStream(playbackUri)) {
+            final File ringtoneFile = File.createTempFile("ringtone", "", mCustomRingtoneDirectory);
+            final Uri playbackUri = Uri.fromFile(ringtoneFile);
+            try (final InputStream fis = contentResolver.openInputStream(originalUri);
+                 final OutputStream fos = contentResolver.openOutputStream(playbackUri)) {
                 // Copies the original file to the newly-created file in device protected storage
                 fis.transferTo(fos);
                 return playbackUri;

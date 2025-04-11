@@ -608,7 +608,7 @@ public class RingtonePickerActivity extends BaseActivity
 
         @Override
         protected void onPostExecute(AddCustomRingtoneResult result) {
-            CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(
+            final CustomRingtone existing = DataModel.getDataModel().getCustomRingtoneByOriginal(
                     mOriginalUri);
             if (existing == null) {
                 // Add the new custom ringtone to the data model.
@@ -620,7 +620,7 @@ public class RingtonePickerActivity extends BaseActivity
                         result.getTitle());
                 // If applicable, delete the old device-encrypted copy.
                 if (DataModel.getDataModel().isInCustomRingtoneDirectory(existing.getUri())) {
-                    File toDelete = new File(existing.getUri().getPath());
+                    final File toDelete = new File(existing.getUri().getPath());
                     if (!toDelete.delete()) {
                         LogUtils.e("Cannot delete old custom ringtone file: %s", toDelete);
                     }
@@ -672,7 +672,7 @@ public class RingtonePickerActivity extends BaseActivity
             if (DataModel.getDataModel().isInCustomRingtoneDirectory(mRemoveUri)) {
                 // If the ringtone is in the custom ringtone directory, it is a copy and so it
                 // should be deleted when removed.
-                File toDelete = new File(mRemoveUri.getPath());
+                final File toDelete = new File(mRemoveUri.getPath());
                 if (!toDelete.delete()) {
                     LogUtils.e("Cannot delete removed custom ringtone file: %s", toDelete);
                 }
