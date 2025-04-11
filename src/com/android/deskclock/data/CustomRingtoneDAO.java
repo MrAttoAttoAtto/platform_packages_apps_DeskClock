@@ -37,8 +37,17 @@ final class CustomRingtoneDAO {
     /** Key to a preference that stores the next unused ringtone id. */
     private static final String NEXT_RINGTONE_ID = "next_ringtone_id";
 
-    /** Prefix for a key to a preference that stores the URI associated with the ringtone id. */
+    /**
+     * Prefix for a key to a preference that stores the playback URI associated with the ringtone
+     * id.
+     */
     private static final String RINGTONE_URI = "ringtone_uri_";
+
+    /**
+     * Prefix for a key to a preference that stores the originally selected URI associated with the
+     * ringtone id. This is used to prevent duplicate ringtones from being added.
+     */
+    private static final String RINGTONE_ORIGINAL_URI = "ringtone_original_uri_";
 
     /** Prefix for a key to a preference that stores the title associated with the ringtone id. */
     private static final String RINGTONE_TITLE = "ringtone_title_";
@@ -47,22 +56,43 @@ final class CustomRingtoneDAO {
 
     /**
      * @param uri points to an audio file located on the file system
+     * @param originalUri points to the audio file originally selected by the user
      * @param title the title of the audio content at the given {@code uri}
      * @return the newly added custom ringtone
      */
-    static CustomRingtone addCustomRingtone(SharedPreferences prefs, Uri uri, String title) {
+    static CustomRingtone addCustomRingtone(SharedPreferences prefs, Uri uri, Uri originalUri,
+            String title) {
         final long id = prefs.getLong(NEXT_RINGTONE_ID, 0);
         final Set<String> ids = getRingtoneIds(prefs);
         ids.add(String.valueOf(id));
 
         prefs.edit()
                 .putString(RINGTONE_URI + id, uri.toString())
+                .putString(RINGTONE_ORIGINAL_URI + id, originalUri.toString())
                 .putString(RINGTONE_TITLE + id, title)
                 .putLong(NEXT_RINGTONE_ID, id + 1)
                 .putStringSet(RINGTONE_IDS, ids)
                 .apply();
 
-        return new CustomRingtone(id, uri, title, true);
+        return new CustomRingtone(id, uri, originalUri, title, true);
+    }
+
+    /**
+     * @param id identifies the ringtone to be updated
+     * @param uri points to an audio file located on the file system
+     * @param originalUri points to the audio file originally selected by the user
+     * @param title the title of the audio content at the given {@code uri}
+     * @return the updated custom ringtone
+     */
+    static CustomRingtone updateCustomRingtone(SharedPreferences prefs, long id, Uri uri,
+            Uri originalUri, String title) {
+        prefs.edit()
+                .putString(RINGTONE_URI + id, uri.toString())
+                .putString(RINGTONE_ORIGINAL_URI + id, originalUri.toString())
+                .putString(RINGTONE_TITLE + id, title)
+                .apply();
+
+        return new CustomRingtone(id, uri, originalUri, title, true);
     }
 
     /**
@@ -74,6 +104,7 @@ final class CustomRingtoneDAO {
 
         final SharedPreferences.Editor editor = prefs.edit();
         editor.remove(RINGTONE_URI + id);
+        editor.remove(RINGTONE_ORIGINAL_URI + id);
         editor.remove(RINGTONE_TITLE + id);
         if (ids.isEmpty()) {
             editor.remove(RINGTONE_IDS);
@@ -91,12 +122,24 @@ final class CustomRingtoneDAO {
         final Set<String> ids = prefs.getStringSet(RINGTONE_IDS, Collections.<String>emptySet());
         final List<CustomRingtone> ringtones = new ArrayList<>(ids.size());
 
+        final SharedPreferences.Editor editor = prefs.edit();
         for (String id : ids) {
             final long idLong = Long.parseLong(id);
             final Uri uri = Uri.parse(prefs.getString(RINGTONE_URI + id, null));
+            final String originalUriString = prefs.getString(RINGTONE_ORIGINAL_URI + id, null);
+            final Uri originalUri;
+            if (originalUriString == null) {
+                // Persisted preferences may not contain values for RINGTONE_ORIGINAL_URI if the
+                // ringtone was created before this field was added.
+                originalUri = uri;
+                editor.putString(RINGTONE_ORIGINAL_URI + id, uri.toString());
+            } else {
+                originalUri = Uri.parse(originalUriString);
+            }
             final String title = prefs.getString(RINGTONE_TITLE + id, null);
-            ringtones.add(new CustomRingtone(idLong, uri, title, true));
+            ringtones.add(new CustomRingtone(idLong, uri, originalUri, title, true));
         }
+        editor.apply();
 
         return ringtones;
     }
